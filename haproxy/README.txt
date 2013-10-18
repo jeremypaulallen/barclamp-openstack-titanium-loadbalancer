@@ -15,7 +15,10 @@ Information for this barclamp is maintained on the Crowbar Framework Wiki: https
 
 This barclamp is intended for use with all the other HA components for Openstack, each component will be added to this readme file when complete, this is also only fit for Grizzly and will be re-factored for Havana.
 
+This Barclamp is intended to be used in conjunction with three controllers:
+
 All the barclamps must be installed in sequence and the list below is that sequence.
 https://github.com/crowbar/barclamp-openstack-titanium-base - This Barclamp will apply a menu item to Crowbar of which all other HA barclamps will be presented.
 https://github.com/crowbar/barclamp-openstack-titanium-loadbalancer - This is the load balancer barclamps
+https://github.com/crowbar/barclamp-openstack-titanium-database - This is the percona database
 
