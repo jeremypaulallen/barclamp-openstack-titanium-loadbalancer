@@ -22,4 +22,4 @@ https://github.com/crowbar/barclamp-openstack-titanium-base - This Barclamp will
 https://github.com/crowbar/barclamp-openstack-titanium-loadbalancer - This is the load balancer barclamps
 https://github.com/crowbar/barclamp-openstack-titanium-database - This is the percona database
 https://github.com/crowbar/barclamp-openstack-titanium-identity = This is the Openstack Keystone package
-
+https://github.com/crowbar/barclamp-openstack-titanium-messaging - This is  the RabbitMQ Cluster
