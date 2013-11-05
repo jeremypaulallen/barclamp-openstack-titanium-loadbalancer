@@ -1,0 +1,3 @@
+[submodule "haproxy/cache"]
+	path = haproxy/cache
+	url = https://github.com/openstack-titanium-community/titanium-loadbalancer-cache.git
