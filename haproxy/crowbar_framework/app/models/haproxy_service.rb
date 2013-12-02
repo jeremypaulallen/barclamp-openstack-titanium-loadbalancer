@@ -174,7 +174,7 @@ class HaproxyService < ServiceObject
     @logger.debug("haproxy apply_role_pre_chef_call: entering #{all_nodes.inspect}")
     return if all_nodes.empty?
 
-    @logger.debug("haproxy create_proposal: allocate Public IP address")
+    @logger.debug("haproxy apply_role_pre_chef_call: allocate Public IP address")
     net_svc = NetworkService.new @logger
     network_proposal = ProposalObject.find_proposal(net_svc.bc_name, "default")
     tnodes = role.override_attributes["haproxy"]["elements"]["haproxy"]
@@ -182,7 +182,7 @@ class HaproxyService < ServiceObject
       tnodes.each do |n|
         allocate_ip "default", "public", "host",n
       end
-      @logger.info("haproxy create_proposal: allocate Public IP address")
+      @logger.info("haproxy apply_role_pre_chef_call: allocate Public IP address")
 
      if all_nodes.size > 0
          n = NodeObject.find_node_by_name all_nodes.first
@@ -202,7 +202,34 @@ class HaproxyService < ServiceObject
         allocate_ip "default", "public", "host",n
       end
     end	
-    @logger.debug("haproxy create_proposal: Allocated Pulic IP address")
+    @logger.debug("haproxy apply_role_pre_chef_call: Allocated Pulic IP address")
+
+    role.default_attributes["haproxy"]["swift_proxy_instance"] = ""
+    begin
+      swiftService = SwiftService.new(@logger)
+      swiftproxies = swiftService.list_active[1]
+      if swiftproxies.empty?
+        # No actives, look for proposals
+        swiftproxies = swiftService.proposals[1]
+        @logger.debug("haproxy apply_role_pre_chef_call: no active swift nodes detected")
+      end
+      if !swiftproxies.empty?
+        role.default_attributes["haproxy"]["swift_proxy_instance"] = swiftproxies[0]
+        @logger.info("haproxy apply_role_pre_chef_call: found swift proposal - " + swiftproxies[0])
+        # save the proposal name to an attribute on each node object
+        all_nodes.each do |n|
+          node = NodeObject.find_node_by_name n
+          @logger.debug("haproxy apply_role_pre_chef_call: node name is #{n}")
+          node["haproxy"]["swift_proxy_instance"] = swiftproxies[0]
+          node.save
+        end
+      else
+        @logger.debug("haproxy apply_role_pre_chef_call: no active swift proposals detected either...")
+      end
+    rescue
+      @logger.info("haproxy apply_role_pre_chef_call: no swift proxy servers found")
+    end
+
     @logger.debug("haproxy apply_role_pre_chef_call: leaving")
   end
 end

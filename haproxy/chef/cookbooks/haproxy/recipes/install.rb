@@ -49,6 +49,25 @@ else
   is_master = false
 end
 
+# are there any swift proxy servers to load-balance?
+Chef::Log.info("HAProxy:install - detected proposal ***#{node['haproxy']['swift_proxy_instance']}***")
+env_filter = " AND swift_config_environment:swift-config-#{node['haproxy']['swift_proxy_instance']}"
+Chef::Log.info("HAProxy:install - env_filter: #{env_filter}")
+swift_proxy_servers = search(:node, "roles:swift-proxy #{env_filter}")
+if swift_proxy_servers.length > 0
+  #swift proxy(s) found 
+  swift_detected = true
+  Chef::Log.info("HAProxy:install - detected #{swift_proxy_servers.length.to_s} Swift proxy servers")
+  swift_nodes = Array.new
+  admin_net_db = data_bag_item('crowbar', 'admin_network')
+  swift_proxy_servers.length.times do |i|
+    swift_proxy_server_adminip = admin_net_db["allocated_by_name"]["#{swift_proxy_servers[i].name}"]["address"]
+    swift_nodes << "  server " + swift_proxy_servers[i].name + " " + swift_proxy_server_adminip + ":8081 check"
+  end
+else
+  swift_detected = false
+  Chef::Log.info("HAProxy:install - No swift proxy servers detected")
+end
 
 admin_net = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin")
 public_net = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "public")
@@ -105,7 +124,9 @@ template "/etc/haproxy/haproxy.cfg" do
     :cont1_admin_ip => cont1_admin_ip,
     :cont2_admin_ip => cont2_admin_ip,
     :cont3_admin_ip => cont3_admin_ip,
-    :public_ip => public_ip 
+    :public_ip => public_ip,
+    :swift_detected => swift_detected,
+    :swift_servers => swift_nodes
   } )
    notifies :restart, resources(:service => "haproxy")
 end
@@ -113,5 +134,9 @@ end
 unless `ps -N |grep haproxy` != ""
    execute "starthaproxy" do
      command "haproxy -f /etc/haproxy/haproxy.cfg"
+   end
+else
+    execute "reloadhaproxy" do
+     command "haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)"
    end
 end

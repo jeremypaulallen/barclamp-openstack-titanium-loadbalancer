@@ -12,7 +12,8 @@
           "type": "map",
           "required": true,
           "mapping": {
-            "update_origins": { "type": "bool", "required": true }
+            "update_origins": { "type": "bool", "required": true },
+            "swift_proxy_instance": { "type": "str", "required": false }
           }
         }
       }

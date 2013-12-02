@@ -67,3 +67,6 @@ default['haproxy']['source']['target_os'] = 'generic'
 default['haproxy']['source']['target_cpu'] = ''
 default['haproxy']['source']['target_arch'] = ''
 default['haproxy']['source']['use_pcre'] = false
+
+# swift stuff
+default[:haproxy][:swift_proxy_instance] = "proposal"

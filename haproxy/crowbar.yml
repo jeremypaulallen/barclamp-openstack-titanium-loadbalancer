@@ -18,7 +18,6 @@ barclamp:
   name: haproxy 
   display: OpenStack-LoadBalancer
   version: 0
- 
   member:
     - haopenstack
 os_support:
@@ -36,6 +35,7 @@ locale_additions:
       haproxy:
         edit_attributes:
           attributes: Attributes
+          swift_proxy_instance: Swift proposal
         edit_deployment:
           deployment: Deployment
 debs:

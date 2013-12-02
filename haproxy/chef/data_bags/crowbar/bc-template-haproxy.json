@@ -3,7 +3,8 @@
   "description": "provides a HAproxy Load-Balancer",
   "attributes": {
     "haproxy": {
-      "update_origins": false
+      "update_origins": false,
+      "swift_proxy_instance": ""
     }
   },
   "deployment": {

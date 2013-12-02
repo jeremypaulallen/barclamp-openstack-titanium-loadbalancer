@@ -136,12 +136,12 @@ listen mysqld
   server <%= @admincont2 %> <%= @cont2_admin_ip %>:3307   check port 9200 inter 12000 rise 3 fall 3
   server <%= @admincont3 %> <%= @cont3_admin_ip %>:3307   check port 9200 inter 12000 rise 3 fall 3
 
-
+<% if @swift_detected %>  
 listen swift
-  bind <%= @admin_ip %>:8080
   bind <%= @public_ip %>:8080
   balance  roundrobin
-  option  httplog
-  server <%= @admincont1 %> <%= @cont1_admin_ip %>:8080   check  
-  server <%= @admincont2 %> <%= @cont2_admin_ip %>:8080   check  
-  server <%= @admincont3 %> <%= @cont3_admin_ip %>:8080   check   
+  option  httplog  
+<% @swift_servers.length.times do |i| %> 
+<%= @swift_servers[i] %>
+<% end %>
+<% end %> 
