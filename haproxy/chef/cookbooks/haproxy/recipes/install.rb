@@ -23,6 +23,7 @@ execute "createhaproxydir" do
 end
 
 package "haproxy" do
+  version "1.4.18-0ubuntu1.2"
   action :install
 end
 
