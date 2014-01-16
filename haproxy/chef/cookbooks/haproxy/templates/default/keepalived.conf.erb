@@ -5,13 +5,8 @@ vrrp_script chk_haproxy {
 }
  
 vrrp_instance VI_1 {
-<% if @is_master %>
-    state MASTER
-    priority 101
-<% else %>
-    state BACKUP
-    priority 100
-<% end %>
+      state <%= @priority_state %>
+      priority <%= @priority_value %>
       interface <%= @admin_iface %>
       virtual_router_id 51
       virtual_ipaddress {
@@ -23,13 +18,8 @@ vrrp_instance VI_1 {
 }
 
 vrrp_instance VI_2 {
-<% if @is_master %>
-    state MASTER
-    priority 101
-<% else %>
-    state BACKUP
-    priority 100
-<% end %>
+      state <%= @priority_state %>
+      priority <%= @priority_value %>
       interface <%= @public_iface %>
       state MASTER
       virtual_router_id 52

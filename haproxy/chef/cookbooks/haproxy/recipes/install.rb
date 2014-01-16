@@ -41,33 +41,7 @@ service "keepalived" do
   action [:enable, :start]
 end
 
-if node[:roles].include?("haproxy")
-  env_filter = "#{env_filter} AND roles:slave"
-  is_master = true
-else
-  env_filter = "#{env_filter} AND roles:haproxy"
-  is_master = false
-end
-
-# are there any swift proxy servers to load-balance?
-Chef::Log.info("HAProxy:install - detected proposal ***#{node['haproxy']['swift_proxy_instance']}***")
-env_filter = " AND swift_config_environment:swift-config-#{node['haproxy']['swift_proxy_instance']}"
-Chef::Log.info("HAProxy:install - env_filter: #{env_filter}")
-swift_proxy_servers = search(:node, "roles:swift-proxy #{env_filter}")
-if swift_proxy_servers.length > 0
-  #swift proxy(s) found 
-  swift_detected = true
-  Chef::Log.info("HAProxy:install - detected #{swift_proxy_servers.length.to_s} Swift proxy servers")
-  swift_nodes = Array.new
-  admin_net_db = data_bag_item('crowbar', 'admin_network')
-  swift_proxy_servers.length.times do |i|
-    swift_proxy_server_adminip = admin_net_db["allocated_by_name"]["#{swift_proxy_servers[i].name}"]["address"]
-    swift_nodes << "  server " + swift_proxy_servers[i].name + " " + swift_proxy_server_adminip + ":8081 check"
-  end
-else
-  swift_detected = false
-  Chef::Log.info("HAProxy:install - No swift proxy servers detected")
-end
+service_name = node[:haproxy][:config][:environment]
 
 admin_net = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin")
 public_net = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "public")
@@ -75,7 +49,6 @@ admin_iface = admin_net.interface
 public_iface = public_net.interface
 public_net_db = data_bag_item('crowbar', 'public_network')
 admin_net_db = data_bag_item('crowbar', 'admin_network')
-service_name = node[:haproxy][:config][:environment]
 proposal_name = service_name.split('-')
 bcproposal = "bc-haproxy-"+proposal_name[2]
 domain = node[:domain]
@@ -100,11 +73,26 @@ cont1_admin_ip = cont1_db["allocated_by_name"]["#{admincont1}"]["address"]
 cont2_admin_ip = cont1_db["allocated_by_name"]["#{admincont2}"]["address"]
 cont3_admin_ip = cont1_db["allocated_by_name"]["#{admincont3}"]["address"]
 
+# Set keepalive priority values for slave nodes (higher values take preference)
+localipaddress = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin").address 
+case localipaddress
+  when cont1_admin_ip
+    priority_value = 102
+    priority_state = "MASTER"
+  when cont2_admin_ip
+    priority_value = 101
+    priority_state = "BACKUP"
+  when cont3_admin_ip
+    priority_value = 100
+    priority_state = "BACKUP"
+end
+
 template "/etc/keepalived/keepalived.conf" do
   source "keepalived.conf.erb"
   mode "0644"
   variables( {
-    :is_master => is_master, 
+    :priority_state => priority_state, 
+    :priority_value => priority_value,
     :admin_iface => admin_iface,
     :admin_ip => admin_ip,
     :public_iface => public_iface + "." + public_vlan.to_s,
@@ -113,30 +101,46 @@ template "/etc/keepalived/keepalived.conf" do
   notifies :restart, resources(:service => "keepalived")
 end
 
-template "/etc/haproxy/haproxy.cfg" do
-  source "haproxy.cfg.erb"
-  mode "0644"
-  variables( {
-    :admin_ip => admin_ip,
-    :admincont1 => admincont1,
-    :admincont2 => admincont2,
-    :admincont3 => admincont3,
-    :cont1_admin_ip => cont1_admin_ip,
-    :cont2_admin_ip => cont2_admin_ip,
-    :cont3_admin_ip => cont3_admin_ip,
-    :public_ip => public_ip,
-    :swift_detected => swift_detected,
-    :swift_servers => swift_nodes
-  } )
+# Do we need to add swift to the config?
+swift_nodes_db = data_bag_item("crowbar", "swift-nodes") 
+db_haproxy_proposal = swift_nodes_db["haproxy-proposal"]
+db_swift_proxies = swift_nodes_db["proxy-nodes"]
+Chef::Log.info("HAProxy:update_for_swift - db_haproxy_proposal - #{db_haproxy_proposal}") 
+Chef::Log.info("HAProxy:update_for_swift - db_swift_proxies - #{db_swift_proxies}") 
+if db_swift_proxies == ""
+  template "/etc/haproxy/haproxy.cfg" do
+    source "haproxy.cfg.erb"
+    mode "0644"
+    variables( {
+      :admin_ip => admin_ip,
+      :admincont1 => admincont1,
+      :admincont2 => admincont2,
+      :admincont3 => admincont3,
+      :cont1_admin_ip => cont1_admin_ip,
+      :cont2_admin_ip => cont2_admin_ip,
+      :cont3_admin_ip => cont3_admin_ip,
+      :public_ip => public_ip,
+      :swift_detected => false,
+      :swift_servers => ""
+    } )
    notifies :restart, resources(:service => "haproxy")
-end
+  end
 
-unless `ps -N |grep haproxy` != ""
-   execute "starthaproxy" do
-     command "haproxy -f /etc/haproxy/haproxy.cfg"
-   end
-else
+  # restart haproxy (reload new config)
+  unless `ps -N |grep haproxy` != ""
+    execute "starthaproxy" do
+      command "haproxy -f /etc/haproxy/haproxy.cfg"
+    end
+  else
     execute "reloadhaproxy" do
-     command "haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)"
-   end
+      command "haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)"
+    end
+  end
+else
+  # call update_for_swift
+  Chef::Log.info("Swift:Proxy - calling haproxy::update_for_swift on #{node.name}")
+  include_recipe 'haproxy::update_for_swift'
 end
+  
+  
+  
