@@ -1,0 +1,3 @@
+<% unless node[:haproxy].nil? -%>
+command[check_haproxy]=/usr/lib/nagios/plugins/check_haproxy.rb -u 'http://<%= node["haproxy"]["admin_ip"] %>:83/;csv' -U haproxy -P pass
+<% end -%>

@@ -14,13 +14,21 @@ defaults
   mode  http
   option  redispatch
   retries  3
-#  stats  enable
   timeout  http-request 10s
   timeout  queue 1m
   timeout  connect 10s
   timeout  client 1m
   timeout  server 1m
   timeout  check 10s
+
+listen admin
+  bind <%= @admin_ip %>:83
+  stats enable
+  stats auth haproxy:pass
+  mode http
+  stats hide-version
+  stats realm Haproxy\ Statistics
+  stats uri /
 
 listen horizon
   bind <%= @public_ip %>:80
@@ -32,12 +40,12 @@ listen horizon
   option  httpclose
   option  httplog
   rspidel  ^Set-cookie:\ IP=
-  server <%= @admincont1 %> <%= @cont1_admin_ip %>:80   cookie <%= @admincont1 %>  check inter 2000 fall 3  
-  server <%= @admincont2 %> <%= @cont2_admin_ip %>:80   cookie <%= @admincont2 %>  check inter 2000 fall 3  
-  server <%= @admincont3 %> <%= @cont3_admin_ip %>:80   cookie <%= @admincont3 %>  check inter 2000 fall 3  
+  server <%= @admincont1 %> <%= @cont1_admin_ip %>:80   cookie <%= @admincont1 %>  check inter 2000 rise 1 fall 3  
+  server <%= @admincont2 %> <%= @cont2_admin_ip %>:80   cookie <%= @admincont2 %>  check inter 2000 rise 1 fall 3  
+  server <%= @admincont3 %> <%= @cont3_admin_ip %>:80   cookie <%= @admincont3 %>  check inter 2000 rise 1 fall 3  
   
 
-listen keystone-1
+listen keystone-admin
   bind <%= @admin_ip %>:5000
   bind <%= @public_ip %>:5000
   balance  roundrobin
@@ -46,7 +54,7 @@ listen keystone-1
   server  <%= @admincont2 %> <%= @cont2_admin_ip %>:5000   check 
   server  <%= @admincont3 %> <%= @cont3_admin_ip %>:5000   check   
 
-listen keystone-2
+listen keystone-public
   bind <%= @admin_ip %>:35357
   bind <%= @public_ip %>:35357
   balance  roundrobin
@@ -55,7 +63,7 @@ listen keystone-2
   server  <%= @admincont2 %> <%= @cont2_admin_ip %>:35357   check 
   server  <%= @admincont3 %> <%= @cont3_admin_ip %>:35357   check   
 
-listen nova-api-1
+listen nova-ec2-api
   bind <%= @admin_ip %>:8773
   bind <%= @public_ip %>:8773
   balance  roundrobin
@@ -65,7 +73,7 @@ listen nova-api-1
   server  <%= @admincont3 %> <%= @cont3_admin_ip %>:8773   check  
   
 
-listen nova-api-2
+listen nova-osapi-api
   bind <%= @admin_ip %>:8774
   bind <%= @public_ip %>:8774
   balance  roundrobin
@@ -74,7 +82,7 @@ listen nova-api-2
   server  <%= @admincont2 %> <%= @cont2_admin_ip %>:8774   check  
   server  <%= @admincont3 %> <%= @cont3_admin_ip %>:8774   check   
 
-listen nova-api-3
+listen nova-metadata-api
   bind <%= @admin_ip %>:8775
   bind <%= @public_ip %>:8775
   balance  roundrobin
@@ -84,7 +92,7 @@ listen nova-api-3
   server  <%= @admincont3 %> <%= @cont3_admin_ip %>:8775   check 
   
 
-listen nova-api-4
+listen cinder-api
   bind <%= @admin_ip %>:8776
   bind <%= @public_ip %>:8776
   balance  roundrobin
@@ -103,6 +111,14 @@ listen glance-api
   server  <%= @admincont2 %> <%= @cont2_admin_ip %>:9292   check  
   server  <%= @admincont3 %> <%= @cont3_admin_ip %>:9292   check 
   
+listen glance-registry
+  bind <%= @admin_ip %>:9191
+  bind <%= @public_ip %>:9191
+  balance  roundrobin
+  option  httplog
+  server <%= @admincont1 %> <%= @cont1_admin_ip %>:9191   check  
+  server <%= @admincont2 %> <%= @cont2_admin_ip %>:9191   check  
+  server <%= @admincont3 %> <%= @cont3_admin_ip %>:9191   check  
 
 listen quantum
   bind <%= @admin_ip %>:9696
@@ -113,14 +129,15 @@ listen quantum
   server  <%= @admincont2 %> <%= @cont2_admin_ip %>:9696   check  
   server  <%= @admincont3 %> <%= @cont3_admin_ip %>:9696   check   
 
-listen glance-reg
-  bind <%= @admin_ip %>:9191
-  bind <%= @public_ip %>:9191
-  balance  roundrobin
-  option  httplog
-  server <%= @admincont1 %> <%= @cont1_admin_ip %>:9191   check  
-  server <%= @admincont2 %> <%= @cont2_admin_ip %>:9191   check  
-  server <%= @admincont3 %> <%= @cont3_admin_ip %>:9191   check   
+#listen rabbit_cluster
+#  bind <%= @admin_ip %>:5672
+#  balance  roundrobin
+#  mode  tcp
+#  option  tcpka
+#  option  tcplog
+#  server <%= @admincont1 %> <%= @cont1_admin_ip %>:5672  check
+#  server <%= @admincont2 %> <%= @cont2_admin_ip %>:5672  check 
+#  server <%= @admincont3 %> <%= @cont3_admin_ip %>:5672  check 
 
 listen mysqld
   bind <%= @admin_ip %>:3307
@@ -128,13 +145,15 @@ listen mysqld
   mode  tcp
   option  mysql-check user cluster_watcher
   option  tcplog
+  option  httpchk
   option  clitcpka
   option  srvtcpka
   timeout client  28801s
   timeout server  28801s
-  server <%= @admincont1 %> <%= @cont1_admin_ip %>:3307   check port 9200 inter 12000 rise 3 fall 3  
-  server <%= @admincont2 %> <%= @cont2_admin_ip %>:3307   check port 9200 inter 12000 rise 3 fall 3
-  server <%= @admincont3 %> <%= @cont3_admin_ip %>:3307   check port 9200 inter 12000 rise 3 fall 3
+  server <%= @admincont1 %> <%= @cont1_admin_ip %>:3306   check port 9200 inter 12000 rise 2 fall 3  
+  server <%= @admincont2 %> <%= @cont2_admin_ip %>:3306   check port 9200 inter 12000 rise 2 fall 3
+  server <%= @admincont3 %> <%= @cont3_admin_ip %>:3306   check port 9200 inter 12000 rise 2 fall 3
+
 
 <% if @swift_detected %>  
 listen swift
@@ -145,3 +164,4 @@ listen swift
 <%= @swift_servers[i] %>
 <% end %>
 <% end %> 
+

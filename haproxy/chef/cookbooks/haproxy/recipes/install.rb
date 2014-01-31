@@ -1,4 +1,3 @@
-#
 # Cookbook Name:: git
 # Recipe:: install
 #
@@ -18,11 +17,14 @@
 # limitations under the License.
 #
 
-execute "createhaproxydir" do
-  command "mkdir -p /var/lib/haproxy"
+directory "/var/lib/haproxy" do
+  mode 0755
+  recursive true
+  action :create
 end
 
 package "haproxy" do
+  version "1.4.18-0ubuntu1.2"
   action :install
 end
 
@@ -30,7 +32,6 @@ service "haproxy" do
   supports :restart => true
   action [:enable, :start]
 end
-
 
 package "keepalived" do
   action :install
@@ -102,11 +103,23 @@ template "/etc/keepalived/keepalived.conf" do
 end
 
 # Do we need to add swift to the config?
-swift_nodes_db = data_bag_item("crowbar", "swift-nodes") 
-db_haproxy_proposal = swift_nodes_db["haproxy-proposal"]
-db_swift_proxies = swift_nodes_db["proxy-nodes"]
-Chef::Log.info("HAProxy:update_for_swift - db_haproxy_proposal - #{db_haproxy_proposal}") 
-Chef::Log.info("HAProxy:update_for_swift - db_swift_proxies - #{db_swift_proxies}") 
+begin
+   # Retrieves swift-nodes data bag
+   swift_nodes_db = data_bag_item("crowbar", "swift-nodes")
+   # If swift data bag is not null 
+   unless swift_nodes.nil?
+     db_haproxy_proposal = swift_nodes_db["haproxy-proposal"]
+     db_swift_proxies = swift_nodes_db["proxy-nodes"]
+     Chef::Log.info("HAProxy:update_for_swift - db_haproxy_proposal - #{db_haproxy_proposal}")
+     Chef::Log.info("HAProxy:update_for_swift - db_swift_proxies - #{db_swift_proxies}")
+   end
+rescue
+  # Swift Data bag search can throw an exception if this data bag doesn't exit
+  # It does mean than swift is not installed and/or deployed
+  Chef::Log.info("Exception caught while retrieving swift data bag. Swift is not installed -> Skip this step")
+  db_swift_proxies = ""
+end
+
 if db_swift_proxies == ""
   template "/etc/haproxy/haproxy.cfg" do
     source "haproxy.cfg.erb"
@@ -126,12 +139,15 @@ if db_swift_proxies == ""
    notifies :restart, resources(:service => "haproxy")
   end
 
-  # restart haproxy (reload new config)
-  unless `ps -N |grep haproxy` != ""
-    execute "starthaproxy" do
-      command "haproxy -f /etc/haproxy/haproxy.cfg"
-    end
-  else
+execute "enable init script to start haproxy" do
+  command "sed -i 's/ENABLED=0/ENABLED=1/' /etc/default/haproxy"
+end
+
+unless `ps -N |grep haproxy` != ""
+   execute "starthaproxy" do
+     command "haproxy -f /etc/haproxy/haproxy.cfg"
+   end
+else
     execute "reloadhaproxy" do
       command "haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)"
     end

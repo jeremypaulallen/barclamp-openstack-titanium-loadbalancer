@@ -30,15 +30,15 @@ class HaproxyService < ServiceObject
     base = super
     @logger.debug("haproxy create_proposal: done with base")
 
-    nodes = NodeObject.all
-    nodes.delete_if { |n| n.nil? }
-    nodes.delete_if { |n| n.admin? } if nodes.size > 1
-    head = nodes.shift
-    nodes = [ head ] if nodes.empty?
-    base["deployment"]["haproxy"]["elements"] = {
-      "haproxy" => [ head.name ],
-      "slave" => nodes.map { |x| x.name }
-    }
+#    nodes = NodeObject.all
+#    nodes.delete_if { |n| n.nil? }
+#    nodes.delete_if { |n| n.admin? } if nodes.size > 1
+#    head = nodes.shift
+#    nodes = [ head ] if nodes.empty?
+#    base["deployment"]["haproxy"]["elements"] = {
+#      "haproxy" => [ head.name ],
+#      "slave" => nodes.map { |x| x.name }
+#    }
 
     @logger.debug("haproxy create_proposal: exiting")
     base

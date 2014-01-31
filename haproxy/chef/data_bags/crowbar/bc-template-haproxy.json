@@ -1,6 +1,6 @@
 {
   "id": "bc-template-haproxy",
-  "description": "provides a HAproxy Load-Balancer",
+  "description": "OpenStack HA - HAProxy load-balancer services",
   "attributes": {
     "haproxy": {
       "update_origins": false,
